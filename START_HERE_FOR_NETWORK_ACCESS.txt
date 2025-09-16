@@ -1,0 +1,74 @@
+🚀 SENTIMENT ANALYSIS APP - QUICK NETWORK SETUP GUIDE
+========================================================
+
+🎯 GOAL: Make your sentiment analysis app accessible from phones, tablets, 
+         and other computers on the same WiFi network.
+
+✅ CURRENT STATUS: Your app is READY for network access!
+   Network IP: http://172.20.171.84:5000
+
+📋 3 SIMPLE STEPS TO GET STARTED:
+
+1. CONFIGURE FIREWALL (One-time setup - requires Admin):
+   - Right-click "setup_and_run_admin.bat"
+   - Select "Run as Administrator"
+   - Follow the prompts (this opens port 5000 in Windows Firewall)
+
+2. START THE APP:
+   - Double-click "start_sentiment_app_network.bat"
+   - The app shows your network IP address
+   - Keep this window open while using the app
+
+3. ACCESS FROM OTHER DEVICES:
+   - Connect your phone/tablet to the SAME WiFi network
+   - Open any web browser (Chrome, Safari, etc.)
+   - Go to: http://172.20.171.84:5000
+   - The app works exactly the same on all devices!
+
+📁 FILES IN THIS FOLDER:
+========================
+✨ setup_and_run_admin.bat      ← Run as Admin (first time only)
+🚀 start_sentiment_app_network.bat ← Daily use (shows network info)
+📖 NETWORK_ACCESS_GUIDE.md      ← Detailed troubleshooting guide
+🧪 test_network_setup.py        ← Test your network configuration
+📝 HOW_TO_RUN.md                ← Updated instructions
+
+🔧 TROUBLESHOOTING:
+==================
+If it doesn't work:
+1. Make sure all devices are on the SAME WiFi network
+2. Check Windows Firewall settings
+3. Run "test_network_setup.py" to diagnose issues
+4. Read "NETWORK_ACCESS_GUIDE.md" for detailed help
+
+📱 DEVICE COMPATIBILITY:
+=======================
+✅ Android phones/tablets
+✅ iPhones/iPads  
+✅ Windows computers
+✅ Mac computers
+✅ Linux computers
+✅ Chromebooks
+✅ Smart TVs with browsers
+
+🎉 FEATURES AVAILABLE ON ALL DEVICES:
+=====================================
+• Upload CSV/Excel files for sentiment analysis
+• Real-time text analysis
+• Download results
+• View word clouds and summaries
+• API access for developers
+
+⚡ PERFORMANCE TIPS:
+===================
+• Large files (>1000 comments) may take time to process
+• Mobile devices work best with files under 500 comments
+• Use WiFi (not mobile data) for best performance
+
+🔒 SECURITY NOTE:
+================
+This setup is safe for local networks (home/office WiFi).
+Do NOT expose this to the public internet without additional security.
+
+Need help? Check the troubleshooting guide or run the network test!
+==================================================================
