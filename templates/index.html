@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis - AI-Powered Text Analytics</title>
+    
+    <!-- Modern CSS Framework -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Animate.css for animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        body {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+        }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 10px rgba(255,255,255,0.8),
+                         0 0 20px rgba(255,255,255,0.8),
+                         0 0 30px rgba(255,255,255,0.8);
+        }
+        
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+            transform: scale(1.02);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.1);
+        }
+        
+        .btn-gradient {
+            background: var(--gradient-3);
+            color: white;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px) rotateX(5deg);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: var(--gradient-3);
+            animation: progress 2s ease-in-out infinite;
+        }
+        
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="fixed top-20 right-4 z-50 animate__animated animate__fadeInRight">
+                <div class="glass-effect px-6 py-3 text-white rounded-lg">
+                    <i class="fas fa-exclamation-circle mr-2"></i>{{ message }}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Navigation -->
+    <nav class="glass-effect fixed w-full top-0 z-50 px-6 py-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-brain text-3xl text-white animate__animated animate__pulse animate__infinite"></i>
+                <h1 class="text-2xl font-bold text-white neon-text">Sentiment Analyzer</h1>
+            </div>
+            <div class="flex space-x-4">
+                <a href="/sample" class="text-white hover:text-gray-200 transition">
+                    <i class="fas fa-play-circle mr-2"></i>Demo
+                </a>
+                <button onclick="showGuide()" class="text-white hover:text-gray-200 transition">
+                    <i class="fas fa-question-circle mr-2"></i>Guide
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 pt-24 pb-12">
+        <!-- Hero Section -->
+        <div class="text-center mb-12 animate__animated animate__fadeInDown">
+            <h2 class="text-5xl font-bold text-white mb-4 neon-text">
+                Analyze Sentiments with AI
+            </h2>
+            <p class="text-xl text-white opacity-90">
+                Understand emotions, opinions, and attitudes in your text data instantly
+            </p>
+        </div>
+        
+        <!-- Upload Section -->
+        <div class="glass-effect p-8 mb-8 animate__animated animate__fadeInUp">
+            <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="upload-area p-12 text-center rounded-lg mb-6" 
+                     ondrop="dropHandler(event);" 
+                     ondragover="dragOverHandler(event);"
+                     ondragleave="dragLeaveHandler(event);">
+                    <div class="floating">
+                        <i class="fas fa-cloud-upload-alt text-6xl text-white mb-4"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Drop Your File Here</h3>
+                    <p class="text-white opacity-80 mb-4">or click to browse</p>
+                    <input type="file" name="file" id="fileInput" class="hidden" accept=".csv,.xlsx,.xls,.json,.txt" onchange="fileSelected(event)">
+                    <label for="fileInput" class="btn-gradient inline-block cursor-pointer">
+                        Choose File
+                    </label>
+                    <p class="text-sm text-white opacity-60 mt-4">
+                        Supports CSV, Excel, JSON, and TXT files (Max 16MB)
+                    </p>
+                </div>
+                
+                <!-- File Info Display -->
+                <div id="fileInfo" class="hidden mb-6 p-4 bg-white bg-opacity-10 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-file-alt text-2xl text-white"></i>
+                            <div>
+                                <p class="text-white font-bold" id="fileName"></p>
+                                <p class="text-white opacity-70 text-sm" id="fileSize"></p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="removeFile()" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-times-circle text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Options -->
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-white mb-2">
+                            <i class="fas fa-columns mr-2"></i>Text Column Name
+                        </label>
+                        <input type="text" name="text_column" value="comment_text" 
+                               class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-20 focus:border-opacity-50 focus:outline-none"
+                               placeholder="e.g., comment_text, review, feedback">
+                    </div>
+                    <div>
+                        <label class="block text-white mb-2">
+                            <i class="fas fa-cog mr-2"></i>Analysis Method
+                        </label>
+                        <select name="method" class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white border border-white border-opacity-20 focus:border-opacity-50 focus:outline-none">
+                            <option value="ensemble" selected>Ensemble (Most Accurate)</option>
+                            <option value="vader">VADER (Fast)</option>
+                            <option value="textblob">TextBlob (Balanced)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="text-center">
+                    <button type="submit" class="btn-gradient text-lg px-8 py-3" id="analyzeBtn">
+                        <i class="fas fa-magic mr-2"></i>Analyze Sentiments
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="grid md:grid-cols-3 gap-6 mb-12">
+            <div class="glass-effect p-6 feature-card animate__animated animate__fadeInLeft">
+                <div class="text-center">
+                    <i class="fas fa-rocket text-4xl text-white mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">Quick Demo</h3>
+                    <p class="text-white opacity-80 mb-4">Try with sample data</p>
+                    <a href="/sample" class="btn-gradient inline-block">
+                        Launch Demo
+                    </a>
+                </div>
+            </div>
+            
+            <div class="glass-effect p-6 feature-card animate__animated animate__fadeInUp">
+                <div class="text-center">
+                    <i class="fas fa-keyboard text-4xl text-white mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">Live Input</h3>
+                    <p class="text-white opacity-80 mb-4">Type or paste text directly</p>
+                    <button onclick="showLiveInput()" class="btn-gradient">
+                        Try Now
+                    </button>
+                </div>
+            </div>
+            
+            <div class="glass-effect p-6 feature-card animate__animated animate__fadeInRight">
+                <div class="text-center">
+                    <i class="fas fa-code text-4xl text-white mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">API Access</h3>
+                    <p class="text-white opacity-80 mb-4">Integrate with your apps</p>
+                    <button onclick="showAPIInfo()" class="btn-gradient">
+                        View Docs
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Features Showcase -->
+        <div class="glass-effect p-8 animate__animated animate__fadeIn">
+            <h3 class="text-2xl font-bold text-white mb-6 text-center">
+                <i class="fas fa-star mr-2"></i>What You'll Get
+            </h3>
+            <div class="grid md:grid-cols-4 gap-4">
+                <div class="text-center p-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition">
+                    <i class="fas fa-chart-pie text-3xl text-white mb-2 pulse-animation"></i>
+                    <p class="text-white">Sentiment Distribution</p>
+                </div>
+                <div class="text-center p-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition">
+                    <i class="fas fa-cloud text-3xl text-white mb-2 pulse-animation"></i>
+                    <p class="text-white">Word Clouds</p>
+                </div>
+                <div class="text-center p-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition">
+                    <i class="fas fa-file-alt text-3xl text-white mb-2 pulse-animation"></i>
+                    <p class="text-white">Smart Summaries</p>
+                </div>
+                <div class="text-center p-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition">
+                    <i class="fas fa-download text-3xl text-white mb-2 pulse-animation"></i>
+                    <p class="text-white">Export Results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Live Input Modal -->
+    <div id="liveInputModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="glass-effect p-8 m-4 max-w-2xl w-full animate__animated animate__zoomIn">
+            <h3 class="text-2xl font-bold text-white mb-4">
+                <i class="fas fa-keyboard mr-2"></i>Live Text Analysis
+            </h3>
+            <textarea id="liveText" class="w-full h-40 px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-20 focus:border-opacity-50 focus:outline-none mb-4"
+                      placeholder="Type or paste your text here..."></textarea>
+            <div class="flex justify-end space-x-4">
+                <button onclick="closeLiveInput()" class="px-6 py-2 rounded-lg bg-red-500 bg-opacity-80 text-white hover:bg-opacity-100 transition">
+                    Cancel
+                </button>
+                <button onclick="analyzeLiveText()" class="btn-gradient">
+                    Analyze
+                </button>
+            </div>
+            <div id="liveResults" class="mt-4 hidden">
+                <!-- Results will be displayed here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="glass-effect p-8 text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+            <p class="text-white text-xl">Analyzing sentiments...</p>
+            <div class="w-64 h-1 bg-white bg-opacity-20 rounded-full mt-4 overflow-hidden">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // File handling
+        function dropHandler(ev) {
+            ev.preventDefault();
+            ev.target.classList.remove('dragover');
+            
+            if (ev.dataTransfer.items) {
+                if (ev.dataTransfer.items[0].kind === 'file') {
+                    var file = ev.dataTransfer.items[0].getAsFile();
+                    handleFile(file);
+                }
+            }
+        }
+        
+        function dragOverHandler(ev) {
+            ev.preventDefault();
+            ev.target.classList.add('dragover');
+        }
+        
+        function dragLeaveHandler(ev) {
+            ev.target.classList.remove('dragover');
+        }
+        
+        function fileSelected(ev) {
+            const file = ev.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+        
+        function handleFile(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('fileInput').files = new DataTransfer().files;
+            
+            // Create a new DataTransfer and add the file
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            document.getElementById('fileInput').files = dt.files;
+        }
+        
+        function removeFile() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').classList.add('hidden');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        // Modal functions
+        function showLiveInput() {
+            document.getElementById('liveInputModal').classList.remove('hidden');
+        }
+        
+        function closeLiveInput() {
+            document.getElementById('liveInputModal').classList.add('hidden');
+            document.getElementById('liveResults').classList.add('hidden');
+        }
+        
+        async function analyzeLiveText() {
+            const text = document.getElementById('liveText').value;
+            if (!text || text.trim() === '') {
+                alert('Please enter some text to analyze');
+                return;
+            }
+            
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        comments: [text],
+                        method: 'ensemble'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                
+                const data = await response.json();
+                console.log('Received data:', data);
+                displayLiveResults(data);
+            } catch (error) {
+                console.error('Analysis error:', error);
+                alert('Error analyzing text: ' + error.message);
+            } finally {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+        
+        function displayLiveResults(data) {
+            if (!data || !data.results || !data.results[0]) {
+                alert('No results received from server');
+                return;
+            }
+            const result = data.results[0];
+            const sentiment = result.sentiment;
+            const confidence = (result.confidence * 100).toFixed(1);
+            
+            const sentimentColors = {
+                'positive': 'text-green-400',
+                'negative': 'text-red-400',
+                'neutral': 'text-yellow-400'
+            };
+            
+            const sentimentEmojis = {
+                'positive': '😊',
+                'negative': '😢',
+                'neutral': '😐'
+            };
+            
+            const resultsHtml = `
+                <div class="p-4 bg-white bg-opacity-10 rounded-lg">
+                    <div class="text-center mb-2">
+                        <span class="text-4xl">${sentimentEmojis[sentiment]}</span>
+                    </div>
+                    <p class="text-center text-2xl font-bold ${sentimentColors[sentiment]} mb-2">
+                        ${sentiment.toUpperCase()}
+                    </p>
+                    <p class="text-center text-white opacity-80">
+                        Confidence: ${confidence}%
+                    </p>
+                    <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                        <div>
+                            <p class="text-green-400 font-bold">${(result.scores.positive * 100).toFixed(1)}%</p>
+                            <p class="text-white opacity-60 text-sm">Positive</p>
+                        </div>
+                        <div>
+                            <p class="text-yellow-400 font-bold">${(result.scores.neutral * 100).toFixed(1)}%</p>
+                            <p class="text-white opacity-60 text-sm">Neutral</p>
+                        </div>
+                        <div>
+                            <p class="text-red-400 font-bold">${(result.scores.negative * 100).toFixed(1)}%</p>
+                            <p class="text-white opacity-60 text-sm">Negative</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('liveResults').innerHTML = resultsHtml;
+            document.getElementById('liveResults').classList.remove('hidden');
+        }
+        
+        function showAPIInfo() {
+            alert('API Endpoint: POST /api/analyze\n\nPayload:\n{\n  "comments": ["text1", "text2"],\n  "method": "ensemble"\n}');
+        }
+        
+        function showGuide() {
+            alert('1. Upload a CSV, Excel, JSON, or TXT file\n2. Specify the text column name\n3. Choose analysis method\n4. Click Analyze to see results!');
+        }
+        
+        // Form submission
+        document.getElementById('uploadForm').onsubmit = function(e) {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                alert('Please select a file to analyze');
+                return false;
+            }
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
