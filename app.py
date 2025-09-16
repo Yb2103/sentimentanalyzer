@@ -40,6 +40,10 @@ from config import Config
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Ensure required directories exist (important for Render deployment)
+os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+os.makedirs(app.config.get('RESULTS_FOLDER', 'results'), exist_ok=True)
+
 # Initialize analyzers only if available
 if HAS_SENTIMENT:
     sentiment_analyzer = SentimentAnalyzer(method='vader')  # Use only VADER
