@@ -2,27 +2,33 @@
 
 echo "Starting Render build process..."
 
-# Update pip and install build dependencies
-python -m pip install --upgrade pip setuptools wheel
+# Update pip and install build tools
+python -m pip install --upgrade pip
+python -m pip install wheel setuptools
 
-# Install requirements
-pip install --no-cache-dir -r requirements.txt
+# Install packages one by one to handle errors better
+echo "Installing core packages..."
+pip install Flask
+pip install numpy
+pip install pandas
+pip install nltk
+pip install vaderSentiment
+pip install openpyxl || echo "openpyxl failed, continuing..."
+pip install gunicorn
+pip install Flask-Cors
+pip install Werkzeug
+pip install python-dotenv
 
 # Download NLTK data
+echo "Downloading NLTK data..."
 python -c "
-import nltk
-import ssl
-
 try:
-    _create_unverified_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context
-
-nltk.download('vader_lexicon', quiet=True)
-nltk.download('punkt', quiet=True)
-print('NLTK data downloaded successfully')
+    import nltk
+    nltk.download('vader_lexicon', quiet=True)
+    nltk.download('punkt', quiet=True)
+    print('NLTK data downloaded successfully')
+except Exception as e:
+    print(f'NLTK download failed: {e}')
 "
 
-echo "Build completed successfully!"
+echo "Build completed!"
