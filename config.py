@@ -24,7 +24,10 @@ class Config:
     
     # Basic Flask config
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Production settings
+    FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
     
     # File upload settings
     UPLOAD_FOLDER = str(UPLOAD_DIR)

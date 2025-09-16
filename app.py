@@ -1,5 +1,5 @@
 """
-E-Consultation Sentiment Analysis Web Application
+E-Consultation Sentiment Analysis Web Application - Minimal Version
 Flask-based web interface for analyzing stakeholder comments
 """
 
@@ -12,35 +12,79 @@ import json
 import traceback
 from pathlib import Path
 
-# Import our modules
-from src import (
-    SentimentAnalyzer,
-    TextSummarizer,
-    WordCloudGenerator,
-    DataProcessor,
-    validate_data
-)
-from config import Config, ANALYSIS_CONFIG
+# Try to import our modules with graceful fallbacks
+try:
+    from src import SentimentAnalyzer, DataProcessor, validate_data
+    HAS_SENTIMENT = True
+except ImportError as e:
+    print(f"Warning: Could not import sentiment analyzer: {e}")
+    HAS_SENTIMENT = False
+
+try:
+    from src import TextSummarizer
+    HAS_SUMMARIZER = True
+except ImportError as e:
+    print(f"Warning: Could not import text summarizer: {e}")
+    HAS_SUMMARIZER = False
+
+try:
+    from src import WordCloudGenerator
+    HAS_WORDCLOUD = True
+except ImportError as e:
+    print(f"Warning: Could not import wordcloud generator: {e}")
+    HAS_WORDCLOUD = False
+
+from config import Config
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialize analyzers
-sentiment_analyzer = SentimentAnalyzer(method=Config.DEFAULT_SENTIMENT_METHOD)
-text_summarizer = TextSummarizer()
-wordcloud_generator = WordCloudGenerator()
-data_processor = DataProcessor()
+# Ensure required directories exist (important for Render deployment)
+os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+os.makedirs(app.config.get('RESULTS_FOLDER', 'results'), exist_ok=True)
+
+# Initialize analyzers only if available
+if HAS_SENTIMENT:
+    sentiment_analyzer = SentimentAnalyzer(method='vader')  # Use only VADER
+    data_processor = DataProcessor()
+else:
+    sentiment_analyzer = None
+    data_processor = None
+
+if HAS_SUMMARIZER:
+    text_summarizer = TextSummarizer()
+else:
+    text_summarizer = None
+
+if HAS_WORDCLOUD:
+    wordcloud_generator = WordCloudGenerator()
+else:
+    wordcloud_generator = None
 
 @app.route('/')
 def index():
     """Home page with upload form"""
     return render_template('index.html')
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'sentiment_available': HAS_SENTIMENT,
+        'summarizer_available': HAS_SUMMARIZER,
+        'wordcloud_available': HAS_WORDCLOUD
+    })
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle file upload and trigger analysis"""
     try:
+        if not HAS_SENTIMENT or not data_processor:
+            flash('Sentiment analysis is not available due to missing dependencies', 'error')
+            return redirect(url_for('index'))
+
         # Check if file was uploaded
         if 'file' not in request.files:
             flash('No file selected', 'error')
@@ -80,7 +124,7 @@ def upload_file():
             df_prepared = data_processor.prepare_for_analysis(
                 df, 
                 text_column,
-                sample_size=Config.MAX_SAMPLE_SIZE
+                sample_size=min(1000, Config.MAX_SAMPLE_SIZE)  # Limit to 1000 for free tier
             )
             
             # Store data in session for analysis
@@ -116,6 +160,10 @@ def upload_file():
 def analyze(session_id):
     """Perform analysis and display results"""
     try:
+        if not HAS_SENTIMENT or not sentiment_analyzer:
+            flash('Sentiment analysis is not available', 'error')
+            return redirect(url_for('index'))
+
         # Load session data
         session_file = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_session.json")
         if not os.path.exists(session_file):
@@ -143,30 +191,32 @@ def analyze(session_id):
             
             aggregate_sentiment = sentiment_analyzer.get_aggregate_sentiment(sentiment_results)
             
-            # Generate summaries
+            # Generate summaries only if available
             texts = df[text_column].tolist()
-            collective_summary = text_summarizer.generate_collective_summary(texts, num_points=5)
-            thematic_categories = text_summarizer.categorize_by_theme(texts)
+            if HAS_SUMMARIZER and text_summarizer:
+                collective_summary = text_summarizer.generate_collective_summary(texts, num_points=3)
+                thematic_categories = text_summarizer.categorize_by_theme(texts)
+            else:
+                collective_summary = {'summary': 'Text summarization not available', 'key_points': []}
+                thematic_categories = {}
             
-            # Generate word cloud
-            keywords = wordcloud_generator.extract_keywords(texts, top_n=20)
-            combined_text = ' '.join(texts)
-            wordcloud = wordcloud_generator.generate_wordcloud(combined_text)
-            wordcloud_base64 = wordcloud_generator.wordcloud_to_base64(wordcloud)
-            
-            # Generate sentiment-based word clouds
-            sentiment_clouds = {}
-            for sentiment in ['positive', 'negative', 'neutral']:
-                sentiment_texts = df_with_sentiment[
-                    df_with_sentiment['sentiment'] == sentiment
-                ][text_column].tolist()
-                if sentiment_texts:
-                    sentiment_text = ' '.join([str(t) for t in sentiment_texts])
-                    cloud = wordcloud_generator.generate_wordcloud(
-                        sentiment_text,
-                        colormap=ANALYSIS_CONFIG['wordcloud']['colormaps'][sentiment]
-                    )
-                    sentiment_clouds[sentiment] = wordcloud_generator.wordcloud_to_base64(cloud)
+            # Generate word cloud only if available
+            if HAS_WORDCLOUD and wordcloud_generator:
+                try:
+                    keywords = wordcloud_generator.extract_keywords(texts, top_n=20)
+                    combined_text = ' '.join(texts[:100])  # Limit text for wordcloud
+                    wordcloud = wordcloud_generator.generate_wordcloud(combined_text)
+                    wordcloud_base64 = wordcloud_generator.wordcloud_to_base64(wordcloud)
+                    sentiment_clouds = {}
+                except Exception as e:
+                    print(f"Wordcloud generation failed: {e}")
+                    keywords = []
+                    wordcloud_base64 = None
+                    sentiment_clouds = {}
+            else:
+                keywords = []
+                wordcloud_base64 = None
+                sentiment_clouds = {}
             
             # Prepare results
             results = {
@@ -187,9 +237,12 @@ def analyze(session_id):
             with open(results_file, 'w') as f:
                 json.dump(results, f)
             
-            # Save full results to Excel
-            excel_file = os.path.join(app.config['RESULTS_FOLDER'], f"{session_id}_full_results.xlsx")
-            df_with_sentiment.to_excel(excel_file, index=False, engine='openpyxl')
+            # Save full results to Excel only if openpyxl is available
+            try:
+                excel_file = os.path.join(app.config['RESULTS_FOLDER'], f"{session_id}_full_results.xlsx")
+                df_with_sentiment.to_excel(excel_file, index=False, engine='openpyxl')
+            except ImportError:
+                print("Excel export not available - openpyxl not installed")
             
         else:
             # Load existing results
@@ -199,149 +252,9 @@ def analyze(session_id):
         return render_template('results.html', results=results)
         
     except Exception as e:
-        app.logger.error(f"Analysis error: {str(e)}\n{traceback.format_exc()}")
         flash(f'Analysis error: {str(e)}', 'error')
         return redirect(url_for('index'))
 
-@app.route('/download/<session_id>')
-def download_results(session_id):
-    """Download analysis results"""
-    try:
-        # Check which format was requested
-        format_type = request.args.get('format', 'excel')
-        
-        if format_type == 'excel':
-            filepath = os.path.join(app.config['RESULTS_FOLDER'], f"{session_id}_full_results.xlsx")
-            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            download_name = f"sentiment_analysis_results_{session_id}.xlsx"
-        elif format_type == 'json':
-            filepath = os.path.join(app.config['RESULTS_FOLDER'], f"{session_id}_results.json")
-            mimetype = 'application/json'
-            download_name = f"sentiment_analysis_results_{session_id}.json"
-        else:
-            flash('Invalid download format', 'error')
-            return redirect(url_for('index'))
-        
-        if not os.path.exists(filepath):
-            flash('Results file not found', 'error')
-            return redirect(url_for('index'))
-        
-        return send_file(
-            filepath,
-            mimetype=mimetype,
-            as_attachment=True,
-            download_name=download_name
-        )
-        
-    except Exception as e:
-        flash(f'Download error: {str(e)}', 'error')
-        return redirect(url_for('index'))
-
-@app.route('/api/analyze', methods=['POST'])
-def api_analyze():
-    """API endpoint for programmatic analysis"""
-    try:
-        # Get JSON data
-        data = request.get_json()
-        
-        if not data or 'comments' not in data:
-            return jsonify({'error': 'No comments provided'}), 400
-        
-        comments = data['comments']
-        method = data.get('method', Config.DEFAULT_SENTIMENT_METHOD)
-        
-        # Initialize analyzer with specified method
-        analyzer = SentimentAnalyzer(method=method)
-        
-        # Analyze comments
-        results = []
-        for comment in comments:
-            if isinstance(comment, str):
-                result = analyzer.analyze_text(comment)
-                results.append({
-                    'text': result.text,
-                    'sentiment': result.sentiment_label,
-                    'confidence': result.confidence,
-                    'scores': {
-                        'positive': result.positive,
-                        'negative': result.negative,
-                        'neutral': result.neutral,
-                        'compound': result.compound
-                    }
-                })
-        
-        # Get aggregate results
-        sentiment_results = [analyzer.analyze_text(c) for c in comments if isinstance(c, str)]
-        aggregate = analyzer.get_aggregate_sentiment(sentiment_results)
-        
-        # Generate summary
-        summarizer = TextSummarizer()
-        collective_summary = summarizer.generate_collective_summary(comments)
-        
-        return jsonify({
-            'results': results,
-            'aggregate': aggregate,
-            'summary': collective_summary
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/sample')
-def sample_analysis():
-    """Run analysis on sample data"""
-    try:
-        # Load sample data
-        sample_file = os.path.join('data', 'sample', 'sample_comments.csv')
-        
-        if not os.path.exists(sample_file):
-            flash('Sample data not found', 'error')
-            return redirect(url_for('index'))
-        
-        # Create a session for sample analysis
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        session_id = f"sample_{timestamp}"
-        
-        # Copy sample file to uploads
-        import shutil
-        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}.csv")
-        shutil.copy(sample_file, upload_path)
-        
-        # Create session data
-        session_data = {
-            'filename': 'sample_comments.csv',
-            'filepath': upload_path,
-            'text_column': 'comment_text',
-            'prepared_filepath': upload_path,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Save session
-        session_file = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_session.json")
-        with open(session_file, 'w') as f:
-            json.dump(session_data, f)
-        
-        return redirect(url_for('analyze', session_id=session_id))
-        
-    except Exception as e:
-        flash(f'Error loading sample data: {str(e)}', 'error')
-        return redirect(url_for('index'))
-
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors"""
-    return render_template('404.html'), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors"""
-    app.logger.error(f"Internal error: {str(error)}")
-    return render_template('500.html'), 500
-
 if __name__ == '__main__':
-    # Create required directories
-    for directory in [Config.UPLOAD_FOLDER, Config.RESULTS_FOLDER]:
-        os.makedirs(directory, exist_ok=True)
-    
-    # Run the application
-    app.run(debug=Config.DEBUG, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
